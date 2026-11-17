@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar Heat — Open-World Crime 2D</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #0e1420; color: #f2f2f2; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; height: 100%; overflow: hidden; }
+  #wrap { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  #game { width: min(100vw, 160vh); height: auto; max-height: 100vh; aspect-ratio: 1280 / 800; background: #111; display: block; }
+  .hud { position: absolute; pointer-events: none; z-index: 5; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #hud-top { top: 10px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; }
+  #hud-stars { font-size: 30px; letter-spacing: 4px; }
+  #hud-cash { font-size: 26px; font-weight: 800; color: #7dff8a; }
+  #hud-hpwrap { width: 190px; background: rgba(0,0,0,.55); border: 1px solid #555; border-radius: 4px; padding: 3px 6px; margin-top: 6px; }
+  #hud-hp { font-size: 13px; font-weight: 700; }
+  #hud-hpbar-outer { height: 9px; background: #222; border-radius: 4px; overflow: hidden; margin-top: 2px; }
+  #hud-hpbar { height: 100%; width: 100%; background: #4caf50; }
+  #hud-mission { font-size: 15px; font-weight: 800; color: #ffd54a; }
+  #hud-objective { font-size: 14px; margin-top: 2px; max-width: 560px; }
+  #hud-timer { font-size: 20px; font-weight: 800; color: #ff5252; margin-top: 4px; }
+  #hud-district { font-size: 13px; color: #bcd; margin-top: 4px; }
+  #hud-bottom { bottom: 36px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
+  #hud-speed { font-size: 24px; font-weight: 800; }
+  #hud-ammo { font-size: 15px; margin-top: 2px; }
+  #hud-story { font-size: 13px; font-style: italic; color: #ffe9a8; max-width: 620px; }
+  #minimap { width: 210px; height: 158px; border: 2px solid rgba(255,255,255,.7); border-radius: 4px; background: #20242c; }
+  #hud-toast { position: absolute; top: 96px; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: 800; color: #ffd54a; text-align: center; z-index: 6; text-shadow: 0 2px 4px #000; pointer-events: none; max-width: 90%; }
+  #hud-help { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,.85); background: rgba(0,0,0,.45); padding: 2px 10px; border-radius: 10px; z-index: 5; text-shadow: 0 1px 2px #000; pointer-events: none; white-space: nowrap; }
+  .overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(8,12,20,.82); z-index: 10; text-align: center; padding: 20px; }
+  .overlay h1 { font-size: 64px; letter-spacing: 2px; color: #ffb300; text-shadow: 0 4px 0 #7a2e00, 0 8px 24px rgba(0,0,0,.7); }
+  .overlay h2 { font-size: 18px; color: #7dff8a; margin: 6px 0 14px; letter-spacing: 4px; }
+  .overlay p { max-width: 640px; font-size: 15px; line-height: 1.55; color: #ddd; margin-bottom: 10px; }
+  .overlay button { pointer-events: auto; cursor: pointer; font-size: 20px; font-weight: 800; padding: 12px 34px; border: none; border-radius: 8px; background: #ffb300; color: #201400; margin-top: 12px; }
+  .overlay button:hover { background: #ffc93c; }
+  .overlay .keys { font-size: 13px; color: #bbb; margin-top: 14px; line-height: 1.7; }
+  #pause { display: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="1280" height="800"></canvas>
+
+  <div class="hud" id="hud-top">
+    <div>
+      <div id="hud-mission">Misi 1 — First Wheels</div>
+      <div id="hud-objective">▶ Curi sedan yang ditandai, lalu antar ke Bengkel Solmar.</div>
+      <div id="hud-timer"></div>
+      <div id="hud-district">Old Town</div>
+      <div id="hud-hpwrap"><span id="hud-hp">HP 100</span><div id="hud-hpbar-outer"><div id="hud-hpbar"></div></div></div>
+    </div>
+    <div style="text-align:right">
+      <div id="hud-stars">☆☆☆☆☆</div>
+      <div id="hud-cash">$0</div>
+    </div>
+  </div>
+
+  <div id="hud-toast"></div>
+
+  <div class="hud" id="hud-bottom">
+    <div>
+      <div id="hud-speed">jalan kaki</div>
+      <div id="hud-ammo">👊 F = pukul</div>
+      <div id="hud-story"></div>
+    </div>
+    <canvas id="minimap" width="210" height="158"></canvas>
+  </div>
+  <div id="hud-help">WASD / panah = gerak &amp; nyetir &nbsp;·&nbsp; E = masuk/keluar mobil (curi mobil) &nbsp;·&nbsp; F = pukul &nbsp;·&nbsp; G / klik = tembak &nbsp;·&nbsp; P = pause</div>
+
+  <div class="overlay" id="menu">
+    <h1>SOLMAR HEAT</h1>
+    <h2>OPEN-WORLD CRIME · 2D TOP-DOWN</h2>
+    <p>Kota pesisir Solmar sedang panas-panasnya. Kamu <b>Rico</b>, sopir pendatang baru yang bekerja
+    untuk fixer <b>Mama Luz</b>. Curi mobil, antar paket, kabur dari polisi, dan rebut takhta kota —
+    lewat 6 misi berantai di 5 distrik: Marina Bay, Old Town, Downtown, Palm Heights, dan Industrial Docks.</p>
+    <p>Wanted 0–5 bintang. Polisi mengejar, menabrak, dan menangkap. Bertahanlah, Rico.</p>
+    <button id="btn-start">▶ MULAI — JADI RAJA SOLMAR</button>
+    <div class="keys">WASD / panah — jalan &amp; nyetir · E — masuk / keluar / curi mobil · F — pukul · G / klik — tembak · P — pause<br>
+    Progres, cash, dan misi tersimpan otomatis di browser ini.</div>
+  </div>
+
+  <div class="overlay" id="pause">
+    <h1 style="font-size:44px">JEDA</h1>
+    <p>Solmar menunggumu, Rico.</p>
+    <button id="btn-resume">▶ LANJUTKAN</button>
+    <button id="btn-restart" style="background:#888;color:#111">↺ ULANG DARI MISI 1</button>
+  </div>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
